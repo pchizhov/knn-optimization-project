@@ -7,9 +7,8 @@ class Optimizer(ABC):
     def __init__(self, k: int):
         self.k = k
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray):
         self.X = X
-        self.y = y
 
     @abstractmethod
     def get_k_nearest(self, X: np.ndarray) -> np.ndarray:
@@ -21,4 +20,4 @@ class LinearOptimizer(Optimizer):
     def get_k_nearest(self, X: np.ndarray) -> np.ndarray:
         distances = np.linalg.norm(self.X - X, axis=1)
         indices = np.argsort(distances)[:self.k]
-        return self.y[indices]
+        return indices
