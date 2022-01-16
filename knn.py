@@ -1,14 +1,13 @@
 import numpy as np
-from typing import Type
 import scipy.stats as ss
 from optimizer import Optimizer
 
 
 class KNNClassifier:
 
-    def __init__(self, k: int, optimizer: Type[Optimizer]):
+    def __init__(self, k: int, optimizer: Optimizer):
         self.k = k
-        self.optimizer = optimizer(k)
+        self.optimizer = optimizer
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         self.X = X
