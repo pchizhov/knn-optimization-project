@@ -2,7 +2,8 @@ import os
 import re
 import glob
 import operator
-from PIL.Image import Image
+from IPython import display
+from PIL import Image
 from optimizer import Optimizer
 from typing import Any
 import numpy as np
@@ -111,3 +112,139 @@ class KDTreeOptimizer(Optimizer):
                     curr = KDTreeOptimizer.visit_leaf(curr, x, heap)
             result[i] = [index for _, index in heapq.nlargest(k, heap)]
         return result
+
+    @staticmethod
+    def prepare_animation(folder='animate_kd'):
+        """clean animation snapshots directory"""
+        images = glob.glob(f"{folder}/*.png")
+        for file in images:
+            os.remove(file)
+
+    @staticmethod
+    def display_animation(fig: plt.Figure, folder='animate_kd', displa=None):
+        """shows gif in-place"""
+        plt.close(fig)
+
+        frames = []
+        images = glob.glob(f"{folder}/*.png")
+
+        # extract image file names as numbers
+        order = list(map(int, [re.search(r'\d+', s)[0] for s in images]))
+        # sort images by their names as numbers
+        pairs = sorted(zip(images, order), key=operator.itemgetter(1))
+
+        # create frames
+        for file, _ in pairs:
+            image = Image.open(file)
+            frames.append(image.copy())
+        # frames = [Image.open(file) for file, _ in pairs]
+
+        # Save into a GIF file that loops forever
+        frames[0].save('KDTreeConstruction.gif',
+                       format='GIF', loop=0,
+                       append_images=frames[1:],
+                       save_all=True, duration=1500)
+
+        # display gif
+        with open('KDTreeConstruction.gif', 'rb') as file:
+            display.display(display.Image(file.read()))
+
+    def draw_kd_tree(self, node, xlim, ylim, axis, bbox):
+        if node is None or node.is_leaf:
+            return
+        (xmin, xmax), (ymin, ymax) = bbox
+        med = node.points[0, axis]
+        if axis == 0:
+            ymin_norm = (ylim[0] - ymin) / (ymax - ymin)
+            ymax_norm = (ylim[1] - ymin) / (ymax - ymin)
+            plt.axvline(med, ymin=ymin_norm, ymax=ymax_norm, color='blue')
+            self.draw_kd_tree(node.left, (xlim[0], med), ylim, 1, bbox)
+            self.draw_kd_tree(node.right, (med, xlim[1]), ylim, 1, bbox)
+        else:
+            xmin_norm = (xlim[0] - xmin) / (xmax - xmin)
+            xmax_norm = (xlim[1] - xmin) / (xmax - xmin)
+            plt.axhline(med, xmin=xmin_norm, xmax=xmax_norm, color='red')
+            self.draw_kd_tree(node.left, xlim, (ylim[0], med), 0, bbox)
+            self.draw_kd_tree(node.right, xlim, (med, ylim[1]), 0, bbox)
+
+    def visualize(self):
+        plt.figure(figsize=(12, 12))
+        plt.scatter(*self.X.T, color='black')
+        xlim = (self.X[:, 0].min(), self.X[:, 0].max())
+        ylim = (self.X[:, 1].min(), self.X[:, 1].max())
+        plt.xlim(xlim)
+        plt.ylim(ylim)
+        self.draw_kd_tree(self.root, xlim, ylim, 0, (xlim, ylim))
+
+    def visualize_query(self, point, k):
+        self.visualize()
+        plt.scatter(*point[0], color='red')
+        nearest = self.query(point, k)
+        plt.scatter(*self.X[nearest[0]].T, color='orange')
+
+    def plot(self, animate=False, show_visited=False, show_level=None, fig_ax=None):
+        if animate:
+            KDTreeOptimizer.prepare_animation()
+        # create figure
+        if fig_ax is None:
+            fig, ax = plt.subplots(figsize=(10, 10))
+        else:
+            fig, ax = fig_ax
+        # draw data points
+        ax.scatter(*self.X.T, color='black')
+
+        # set up axes
+        center = np.mean(self.X, axis=0)
+        radius = max(np.max(self.X, axis=0) - center)
+        offset_ratio = 0.15
+        xoffset = (self.X[:, 0].max() - self.X[:, 0].min()) * offset_ratio
+        yoffset = (self.X[:, 1].max() - self.X[:, 1].min()) * offset_ratio
+        x_bord = (center[0] - radius - xoffset, center[0] + radius + xoffset)
+        y_bord = (center[1] - radius - yoffset, center[1] + radius + yoffset)
+        (xmin, xmax), (ymin, ymax) = x_bord, y_bord
+        ax.set_xlim(x_bord)
+        ax.set_ylim(y_bord)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # prepare variables
+        prev_node = None
+        queue = [(self.root, x_bord, y_bord)]
+
+        # perform BFS throughout nodes to create balls
+        for node, xlim, ylim in queue:
+            if not node.is_leaf:
+                axis = node.level % 2
+                med = node.points[0, axis]
+                if show_level is None or node.level == show_level:
+                    # if we enter new level, save figure before drawing new circle
+                    if animate and (prev_node is None or node.level != prev_node.level):
+                        fig.tight_layout()
+                        fig.savefig(f'animate_kd/{node.level}.png')
+                        prev_node = node
+
+                    # we will separately create ball filling and boundary
+                    if axis == 0:
+                        ymin_norm = (ylim[0] - ymin) / (ymax - ymin)
+                        ymax_norm = (ylim[1] - ymin) / (ymax - ymin)
+                        plt.axvline(med, ymin=ymin_norm, ymax=ymax_norm, color='blue')
+                    else:
+                        xmin_norm = (xlim[0] - xmin) / (xmax - xmin)
+                        xmax_norm = (xlim[1] - xmin) / (xmax - xmin)
+                        plt.axhline(med, xmin=xmin_norm, xmax=xmax_norm, color='red')
+                # update queue
+                if axis == 0:
+                    queue.append((node.left, (xlim[0], med), ylim))
+                    queue.append((node.right, (med, xlim[1]), ylim))
+                else:
+                    queue.append((node.left, xlim, (ylim[0], med)))
+                    queue.append((node.right, xlim, (med, ylim[1])))
+            elif show_visited and node.visited:
+                rect = plt.Rectangle((xlim[0], ylim[0]), xlim[1] - xlim[0], ylim[1] - ylim[0], color='gray', alpha=0.4)
+                ax.add_patch(rect)
+
+
+        # disaply animation
+        if animate:
+            fig.savefig(f'animate_kd/{self.depth + 1}.png')
+            KDTreeOptimizer.display_animation(fig)
