@@ -42,7 +42,7 @@ class KDTreeOptimizer(Optimizer):
     def kd_tree(self, X: np.ndarray, level: int = 0):
         if not len(X):
             return
-        if len(X) <= self.leaf_size:
+        if len(X) <= self.leaf_size or self.leaf_size == 1 and len(X) == 2:
             return KDTreeNode(
                 True,
                 level,
