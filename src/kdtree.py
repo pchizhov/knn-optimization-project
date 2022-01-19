@@ -4,7 +4,7 @@ import glob
 import operator
 from IPython import display
 from PIL import Image
-from optimizer import Optimizer
+from .optimizer import Optimizer
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
