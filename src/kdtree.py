@@ -75,10 +75,17 @@ class KDTreeOptimizer(Optimizer):
             self.re_init(node.right)
 
     @staticmethod
-    def visit_leaf(node: KDTreeNode, x: np.ndarray, heap: list):
+    def visit_leaf(node: KDTreeNode, x: np.ndarray, heap: list, k: int):
         if not node.visited:
             dst = KDTreeOptimizer.distances(node.points, x)
-            for d, i in zip(dst, node.indices):
+            if len(dst) > k:
+                nearest_indices = np.argpartition(dst, k - 1)[:k]
+                new_dst = dst[nearest_indices]
+                indices = node.indices[nearest_indices]
+            else:
+                new_dst = dst
+                indices = node.indices
+            for d, i in zip(new_dst, indices):
                 heapq.heappushpop(heap, (-d, i))
             node.visited = True
             if node.is_leaf:
@@ -87,14 +94,14 @@ class KDTreeOptimizer(Optimizer):
         # going down for the first time
         if not node.left.visited and not node.right.visited:
             if x[dim] <= node.points[0, dim]:
-                return KDTreeOptimizer.visit_leaf(node.left, x, heap)
+                return KDTreeOptimizer.visit_leaf(node.left, x, heap, k)
             else:
-                return KDTreeOptimizer.visit_leaf(node.right, x, heap)
+                return KDTreeOptimizer.visit_leaf(node.right, x, heap, k)
         # going down on backward pass
         elif not node.left.visited:
-            return KDTreeOptimizer.visit_leaf(node.left, x, heap)
+            return KDTreeOptimizer.visit_leaf(node.left, x, heap, k)
         elif not node.right.visited:
-            return KDTreeOptimizer.visit_leaf(node.right, x, heap)
+            return KDTreeOptimizer.visit_leaf(node.right, x, heap, k)
         else:
             return node
 
@@ -103,25 +110,25 @@ class KDTreeOptimizer(Optimizer):
         for i, x in enumerate(X):
             self.re_init(self.root)
             heap = [(-np.inf, 0) for _ in range(k)]
-            curr = KDTreeOptimizer.visit_leaf(self.root, x, heap)
+            curr = KDTreeOptimizer.visit_leaf(self.root, x, heap, k)
             while curr.parent is not None:
                 curr = curr.parent
                 dim = curr.level % curr.points.shape[1]
                 dst_to_line = abs(x[dim] - curr.points[0, dim])
                 if dst_to_line <= -heap[0][0]:
-                    curr = KDTreeOptimizer.visit_leaf(curr, x, heap)
-            result[i] = [index for _, index in heapq.nlargest(k, heap)]
+                    curr = KDTreeOptimizer.visit_leaf(curr, x, heap, k)
+            result[i] = np.array(heap)[:, 1]
         return result
 
     @staticmethod
-    def prepare_animation(folder='animate_kd'):
+    def prepare_animation(folder='animate/kd_tree'):
         """clean animation snapshots directory"""
         images = glob.glob(f"{folder}/*.png")
         for file in images:
             os.remove(file)
 
     @staticmethod
-    def display_animation(fig: plt.Figure, folder='animate_kd', displa=None):
+    def display_animation(fig: plt.Figure, folder='animate/kd_tree'):
         """shows gif in-place"""
         plt.close(fig)
 
@@ -134,19 +141,16 @@ class KDTreeOptimizer(Optimizer):
         pairs = sorted(zip(images, order), key=operator.itemgetter(1))
 
         # create frames
-        for file, _ in pairs:
-            image = Image.open(file)
-            frames.append(image.copy())
-        # frames = [Image.open(file) for file, _ in pairs]
+        frames = [Image.open(file) for file, _ in pairs]
 
         # Save into a GIF file that loops forever
-        frames[0].save('KDTreeConstruction.gif',
+        frames[0].save('gifs/KDTreeConstruction.gif',
                        format='GIF', loop=0,
                        append_images=frames[1:],
                        save_all=True, duration=1500)
 
         # display gif
-        with open('KDTreeConstruction.gif', 'rb') as file:
+        with open('gifs/KDTreeConstruction.gif', 'rb') as file:
             display.display(display.Image(file.read()))
 
     def draw_kd_tree(self, node, xlim, ylim, axis, bbox):
@@ -220,7 +224,7 @@ class KDTreeOptimizer(Optimizer):
                     # if we enter new level, save figure before drawing new circle
                     if animate and (prev_node is None or node.level != prev_node.level):
                         fig.tight_layout()
-                        fig.savefig(f'animate_kd/{node.level}.png')
+                        fig.savefig(f'animate/kd_tree/{node.level}.png')
                         prev_node = node
 
                     # we will separately create ball filling and boundary
@@ -246,5 +250,5 @@ class KDTreeOptimizer(Optimizer):
 
         # disaply animation
         if animate:
-            fig.savefig(f'animate_kd/{self.depth + 1}.png')
+            fig.savefig(f'animate/kd_tree/{self.depth + 1}.png')
             KDTreeOptimizer.display_animation(fig)
