@@ -5,18 +5,14 @@ from .optimizer import Optimizer
 
 class KNNClassifier:
 
-    def __init__(self, k: int, optimizer: Optimizer):
-        self.k = k
-        self.optimizer = optimizer
-
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray, optimizer: Optimizer):
         self.X = X
         self.y = y
-        self.optimizer.fit(X)
+        self.optimizer = optimizer
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray, k: int) -> np.ndarray:
         predictions = np.zeros(X.shape[0])
-        for i in range(len(X)):
-            indices = self.optimizer.get_k_nearest(X[i])
-            predictions[i] = ss.mode(self.y[indices]).mode
+        indices = self.optimizer.query(X, k)
+        for i, idx in enumerate(indices):
+            predictions[i] = ss.mode(self.y[idx]).mode
         return predictions
