@@ -1,7 +1,7 @@
 # knn-optimization-project
 Repository for Algorithmics project at Tartu University.  
 
-## Project goal
+## Project content
 Here we present implementation of the main data structures & algorithms used to perform KNN search:  
 * KD-Tree - data structure that stores data as a binary tree by making axis-aligned splits of points across one of   
   the dimensions (usually interleaving them across tree levels). Each point is associated with some hyperrectangle;  
