@@ -207,6 +207,8 @@ class BallTreeOptimizer(Optimizer):
         return node
  
     def query(self, X: np.ndarray, k=1) -> np.ndarray:
+        assert k <= len(self.X), 'number of neighbors exceeds number of data points'
+        
         self._num_calls += 1
         self._num_visited = 0
         
@@ -215,7 +217,8 @@ class BallTreeOptimizer(Optimizer):
         for i in range(len(X)):
             self._heap = k*[(-np.inf, None)]
             self._query(self.root, X[i], k)
-            result[i] = np.array(heapq.nsmallest(k, self._heap))[::-1, 1]
+            # result[i] = np.array(heapq.nsmallest(k, self._heap))[::-1, 1]
+            result[i] = np.array(self._heap)[:, 1]
             
         return result.astype('int')
     
@@ -230,7 +233,7 @@ class BallTreeOptimizer(Optimizer):
         if node.is_leaf:
             dists = distance_matrix(self.X[node.idx], [x])[:,0]
             if k < len(dists):
-                new_closest_idxs = np.argpartition(dists, k)[:k]
+                new_closest_idxs = np.argpartition(dists, k-1)[:k]
                 new_closest_dists = dists[new_closest_idxs]
                 new_closest_idxs = node.idx[new_closest_idxs]
             else:

@@ -7,6 +7,6 @@ class LinearOptimizer(Optimizer):
 
     def query(self, X: np.ndarray, k=1) -> np.ndarray:
         distances = distance_matrix(X, self.X)
-        indices = np.argsort(distances, axis=1)[:, :k]
+        indices = np.argpartition(distances, k-1, axis=1)[:, :k]
         return indices
 
